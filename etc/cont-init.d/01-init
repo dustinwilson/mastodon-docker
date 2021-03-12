@@ -1,0 +1,94 @@
+#!/usr/bin/with-contenv bash
+set -euo pipefail
+
+# If there already is an existing configuration then link the configuration
+if [ -f "/opt/mastodon/config/mastodon.conf" ]; then
+    if [ ! -L "/opt/mastodon/live/.env.production" ]; then
+        rm /opt/mastodon/live/.env.production
+        ln -s /opt/mastodon/config/mastodon.conf /opt/mastodon/live/.env.production
+    fi
+
+    # These are needed for rake and rails commands
+    if [ "$OTP_SECRET" == "" ]; then
+        export OTP_SECRET=$(cat /opt/mastodon/config/mastodon.conf | sed -En 's/OTP_SECRET=(.+)/\1/p')
+    fi
+    if [ "$SECRET_KEY_BASE" == "" ]; then
+        export SECRET_KEY_BASE=$(cat /opt/mastodon/config/mastodon.conf | sed -En 's/SECRET_KEY_BASE=(.+)/\1/p')
+    fi
+
+    # When the docker container is created an empty file is made as a check here to
+    # see if the database and assets need upgrading.
+    if [ -f "/opt/mastodon/.upgrade" ]; then
+        su mastodon -c "cd /opt/mastodon/live/ && SKIP_POST_DEPLOYMENT_MIGRATIONS=true bundle exec rails db:migrate"
+        su mastodon -c "cd /opt/mastodon/live/ && bin/tootctl cache clear"
+        su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails db:migrate"
+        su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails assets:precompile"
+    fi
+# If there isn't then create one using the supplied environment variables
+else
+    # Fill in secrets if they aren't supplied
+    if [ "$OTP_SECRET" == "" ]; then
+        export OTP_SECRET=$(su mastodon -c "cd /opt/mastodon/live/ && bundle exec rake secret")
+    fi
+    if [ "$SECRET_KEY_BASE" == "" ]; then
+        export SECRET_KEY_BASE=$(su mastodon -c "cd /opt/mastodon/live/ && bundle exec rake secret")
+    fi
+
+    # Vapid keys are generated as a pair
+    if [ "$VAPID_PRIVATE_KEY" == "" ] || [ "$VAPID_PUBLIC_KEY" == "" ]; then
+        if [ "$VAPID_PRIVATE_KEY" == "" ] && [ "$VAPID_PUBLIC_KEY" != "" ]; then
+            echo 'Environment variable $VAPID_PRIVATE_KEY is empty while $VAPID_PUBLIC_KEY is not. Both must be set. Not generating keys.' >&2
+        elif [ "$VAPID_PRIVATE_KEY" != "" ] && [ "$VAPID_PUBLIC_KEY" == "" ]; then
+            echo 'Environment variable $VAPID_PUBLIC_KEY is empty while $VAPID_PRIVATE_KEY is not. Both must be set. Not generating keys.' >&2
+        else
+            # Mastodon's command outputs both as a convenience to paste into the
+            # configuration file. It's not such a convenience here.
+            both=$(su mastodon -c "cd /opt/mastodon/live/ && bundle exec rake mastodon:webpush:generate_vapid_key")
+            export VAPID_PRIVATE_KEY=$(echo "$both" | sed -En 's/VAPID_PRIVATE_KEY=(.+)/\1/p')
+            export VAPID_PUBLIC_KEY=$(echo "$both" | sed -En 's/VAPID_PUBLIC_KEY=(.+)/\1/p')
+        fi
+    fi
+
+    cat <<EOF > /opt/mastodon/config/mastodon.conf
+LOCAL_DOMAIN=${LOCAL_DOMAIN}
+WEB_DOMAIN=${WEB_DOMAIN}
+SINGLE_USER_MODE=${SINGLE_USER_MODE}
+SECRET_KEY_BASE=${SECRET_KEY_BASE}
+OTP_SECRET=${OTP_SECRET}
+VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+DB_HOST=${POSTGRES_HOST}
+DB_PORT=${POSTGRES_PORT}
+DB_NAME=${POSTGRES_DB}
+DB_USER=${POSTGRES_USER}
+DB_PASS=${POSTGRES_PASS}
+REDIS_HOST=${REDIS_HOST}
+REDIS_PORT=${POSTGRES_PORT}
+REDIS_PASSWORD=${REDIS_PASS}
+SMTP_SERVER=${SMTP_SERVER}
+SMTP_PORT=${SMTP_PORT}
+SMTP_AUTH_METHOD=${SMTP_AUTH_METHOD}
+SMTP_OPENSSL_VERIFY_MODE=${SMTP_OPENSSL_VERIFY_MODE}
+SMTP_FROM_ADDRESS=${SMTP_FROM_ADDRESS}
+EOF
+
+    if [ ! -L "/opt/mastodon/live/.env.production" ]; then
+        rm /opt/mastodon/live/.env.production
+        ln -s /opt/mastodon/config/mastodon.conf /opt/mastodon/live/.env.production
+    fi
+
+    # There is a chance the database might already exist, so don't want to fail
+    # everything if it does.
+    su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails db:setup" || echo "Database ${POSTGRES_DB} already exists. Won't generate a new schema." >&2
+    su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails assets:precompile"
+fi
+
+while ! pg_isready -U "${POSTGRES_USER}" -d "postgres://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}" -t 1; do
+  echo "Waiting for ${POSTGRES_HOST} to appear..." >&2
+  sleep 1s
+done
+
+# When the docker container is created an empty file is created to know that the
+# container is being upgraded. It is removed here so that if the container is
+# simply restarted it does not trigger unnecessary database and asset upgrades.
+rm -rf /opt/mastodon/.upgrade
