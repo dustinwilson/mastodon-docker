@@ -13,7 +13,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_14.x | bash - && \
     npm install -g yarn
 
 # Install Ruby
-RUN RUBY_VER="2.7.2" && \
+RUN RUBY_VER="2.7.4" && \
     wget -O - https://cache.ruby-lang.org/pub/ruby/${RUBY_VER%.*}/ruby-${RUBY_VER}.tar.gz | tar -xz && \
     cd ruby-${RUBY_VER} && \
     ./configure --with-jemalloc \
@@ -37,16 +37,16 @@ ENV LOCAL_DOMAIN=example.com \
     NODE_ENV=production \
     OTP_SECRET='' \
     PATH="$PATH:/opt/mastodon/live/bin" \
-    POSTGRES_DB=postgres \
-    POSTGRES_HOST=localhost \
-    POSTGRES_PORT=5432 \
-    POSTGRES_USER=mastodon \
-    POSTGRES_PASS='' \
+    DB_NAME=mastodon \
+    DB_HOST=localhost \
+    DB_PORT=5432 \
+    DB_USER=mastodon \
+    DB_PASS='' \
     RAILS_ENV=production \
     RAILS_SERVE_STATIC_FILES="true" \
     REDIS_HOST=localhost \
     REDIS_PORT=6379 \
-    REDIS_PASS='' \
+    REDIS_PASSWORD='' \
     SECRET_KEY_BASE='' \
     SINGLE_USER_MODE=false \
     SMTP_SERVER=localhost \

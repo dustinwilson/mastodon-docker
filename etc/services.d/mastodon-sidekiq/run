@@ -1,2 +1,2 @@
 #!/usr/bin/with-contenv bash
-su mastodon -c "cd /opt/mastodon/live/ && bundle exec sidekiq -c 5 -q default -q mailers -q pull -q push"
+su mastodon -c "cd /opt/mastodon/live/ && bundle exec sidekiq -c 25"

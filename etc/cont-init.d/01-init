@@ -57,14 +57,14 @@ SECRET_KEY_BASE=${SECRET_KEY_BASE}
 OTP_SECRET=${OTP_SECRET}
 VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
 VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
-DB_HOST=${POSTGRES_HOST}
-DB_PORT=${POSTGRES_PORT}
-DB_NAME=${POSTGRES_DB}
-DB_USER=${POSTGRES_USER}
-DB_PASS=${POSTGRES_PASS}
+DB_HOST=${DB_HOST}
+DB_PORT=${DB_PORT}
+DB_NAME=${DB_DB}
+DB_USER=${DB_USER}
+DB_PASS=${DB_PASS}
 REDIS_HOST=${REDIS_HOST}
-REDIS_PORT=${POSTGRES_PORT}
-REDIS_PASSWORD=${REDIS_PASS}
+REDIS_PORT=${REDIS_PORT}
+REDIS_PASSWORD=${REDIS_PASSWORD}
 SMTP_SERVER=${SMTP_SERVER}
 SMTP_PORT=${SMTP_PORT}
 SMTP_AUTH_METHOD=${SMTP_AUTH_METHOD}
@@ -79,12 +79,12 @@ EOF
 
     # There is a chance the database might already exist, so don't want to fail
     # everything if it does.
-    su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails db:setup" || echo "Database ${POSTGRES_DB} already exists. Won't generate a new schema." >&2
+    su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails db:setup" || echo "Database ${DB_DB} already exists. Won't generate a new schema." >&2
     su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails assets:precompile"
 fi
 
-while ! pg_isready -U "${POSTGRES_USER}" -d "postgres://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}" -t 1; do
-  echo "Waiting for ${POSTGRES_HOST} to appear..." >&2
+while ! pg_isready -U "${DB_USER}" -d "postgres://${DB_HOST}:${DB_PORT}/${DB_DB}" -t 1; do
+  echo "Waiting for ${DB_HOST} to appear..." >&2
   sleep 1s
 done
 
