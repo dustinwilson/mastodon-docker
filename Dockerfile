@@ -5,26 +5,11 @@ SHELL [ "/usr/bin/bash", "-c" ]
 
 RUN echo "Etc/UTC" > /etc/localtime && \
     apt update && \
-    apt -y install build-essential bison ca-certificates dpkg-dev ffmpeg file gcc git imagemagick libffi-dev libgdbm-dev libicu66 libicu-dev libidn11 libidn11-dev libjemalloc2 libjemalloc-dev libncurses5-dev libpq5 libpq-dev libprotobuf17 libprotobuf-dev libreadline8 libreadline-dev libssl1.1 libssl-dev libyaml-0-2 libyaml-dev npm postgresql-client protobuf-compiler python tzdata wget whois zlib1g-dev
+    apt -y install build-essential bison ca-certificates curl dpkg-dev ffmpeg file gcc git imagemagick libffi-dev libgdbm-dev libicu66 libicu-dev libidn11 libidn11-dev libjemalloc2 libjemalloc-dev libncurses5-dev libpq5 libpq-dev libprotobuf17 libprotobuf-dev libreadline8 libreadline-dev libssl1.1 libssl-dev libyaml-0-2 libyaml-dev postgresql-client protobuf-compiler python tzdata wget whois zlib1g-dev
 
-# Install Node v12 (LTS)
-ENV NODE_VER="12.20.1"
-RUN ARCH= && \
-    dpkgArch="$(dpkg --print-architecture)" && \
-  case "${dpkgArch##*-}" in \
-    amd64) ARCH='x64';; \
-    ppc64el) ARCH='ppc64le';; \
-    s390x) ARCH='s390x';; \
-    arm64) ARCH='arm64';; \
-    armhf) ARCH='armv7l';; \
-    i386) ARCH='x86';; \
-    *) echo "unsupported architecture"; exit 1 ;; \
-  esac && \
-	cd ~ && \
-	wget https://nodejs.org/download/release/v$NODE_VER/node-v$NODE_VER-linux-$ARCH.tar.gz && \
-	tar xf node-v$NODE_VER-linux-$ARCH.tar.gz && \
-	rm node-v$NODE_VER-linux-$ARCH.tar.gz && \
-	mv node-v$NODE_VER-linux-$ARCH /opt/node && \
+# Install Node v14 (LTS)
+RUN curl -fsSL https://deb.nodesource.com/setup_14.x | bash - && \
+    apt -y install nodejs && \
     npm install -g yarn
 
 # Install Ruby
