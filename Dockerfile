@@ -58,12 +58,11 @@ ENV LOCAL_DOMAIN=example.com \
     VAPID_PUBLIC_KEY='' \
     WEB_DOMAIN=example.com
 
-# Install s6-overlay
-RUN S6_VERSION=2.2.0.3 && \
-    curl -sL https://github.com/just-containers/s6-overlay/releases/download/v${S6_VERSION}/s6-overlay-amd64-installer > /tmp/s6-overlay-amd64-installer && \
-    chmod +x /tmp/s6-overlay-amd64-installer && \
-    /tmp/s6-overlay-amd64-installer / && \
-    rm -rf /tmp/s6-overlay-amd64-installer
+# Install dumb-init
+RUN DUMB_VERSION=1.2.5
+RUN curl -sL https://github.com/Yelp/dumb-init/releases/download/v${DUMB_VERSION}/dumb-init_${DUMB_VERSION}_amd64.deb > /tmp/dumb-init.deb && \
+    dpkg -i /tmp/dumb-init.deb && \
+    rm -rf /tmp/dumb-init.deb
 
 # Install mastodon
 RUN cd /opt/mastodon && \
@@ -79,10 +78,12 @@ RUN cd /opt/mastodon && \
     yarn install --pure-lockfile
 
 # Cleanup
-RUN chown -R mastodon:mastodon /opt/mastodon
+RUN chown -R mastodon:mastodon /opt/mastodon && \
+    chmod -R 774 /opt/mastodon
 
 VOLUME [ "/opt/mastodon/config/", "/opt/mastodon/live/public/system/" ]
 COPY etc /etc
 WORKDIR /opt/mastodon
-ENTRYPOINT [ "/init" ]
+ENTRYPOINT [ "/usr/bin/dumb-init", "--" ]
+CMD [ "/etc/dumb-init" ]
 EXPOSE 3000 4000

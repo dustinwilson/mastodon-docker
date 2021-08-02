@@ -1,12 +1,13 @@
-#!/usr/bin/with-contenv bash
+#!/usr/bin/dumb-init /bin/bash
 set -euo pipefail
 
 # If there already is an existing configuration then link the configuration
 if [ -f "/opt/mastodon/config/mastodon.conf" ]; then
-    if [ ! -L "/opt/mastodon/live/.env.production" ]; then
+    if [ -f "/opt/mastodon/live/.env.production" ]; then
         rm /opt/mastodon/live/.env.production
-        ln -s /opt/mastodon/config/mastodon.conf /opt/mastodon/live/.env.production
     fi
+
+    ln -s /opt/mastodon/config/mastodon.conf /opt/mastodon/live/.env.production
 
     # These are needed for rake and rails commands
     if [ "$OTP_SECRET" == "" ]; then
@@ -79,11 +80,11 @@ EOF
 
     # There is a chance the database might already exist, so don't want to fail
     # everything if it does.
-    su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails db:setup" || echo "Database ${DB_DB} already exists. Won't generate a new schema." >&2
+    su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails db:setup" || echo "Database ${DB_NAME} already exists. Won't generate a new schema." >&2
     su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails assets:precompile"
 fi
 
-while ! pg_isready -U "${DB_USER}" -d "postgres://${DB_HOST}:${DB_PORT}/${DB_DB}" -t 1; do
+while ! pg_isready -U "${DB_USER}" -d "postgres://${DB_HOST}:${DB_PORT}/${DB_NAME}" -t 1; do
   echo "Waiting for ${DB_HOST} to appear..." >&2
   sleep 1s
 done
@@ -92,3 +93,7 @@ done
 # container is being upgraded. It is removed here so that if the container is
 # simply restarted it does not trigger unnecessary database and asset upgrades.
 rm -rf /opt/mastodon/.upgrade
+
+su mastodon -c "cd /opt/mastodon/live/ && bundle exec sidekiq -c 5 -q default -q mailers -q pull -q push" &
+su mastodon -c "cd /opt/mastodon/live/ && /usr/bin/node ./streaming" &
+su mastodon -c "cd /opt/mastodon/live/ && bundle exec puma -C config/puma.rb" &

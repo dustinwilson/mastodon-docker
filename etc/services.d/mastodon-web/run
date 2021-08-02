@@ -1,2 +1,0 @@
-#!/usr/bin/with-contenv bash
-su mastodon -c "cd /opt/mastodon/live/ && bundle exec puma -C config/puma.rb"
