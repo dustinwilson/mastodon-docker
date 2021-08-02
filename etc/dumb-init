@@ -1,6 +1,8 @@
 #!/usr/bin/dumb-init /bin/bash
 set -euo pipefail
 
+export RAILS_ENV=production
+
 # If there already is an existing configuration then link the configuration
 if [ -f "/opt/mastodon/config/mastodon.conf" ]; then
     if [ -f "/opt/mastodon/live/.env.production" ]; then
@@ -94,6 +96,8 @@ done
 # simply restarted it does not trigger unnecessary database and asset upgrades.
 rm -rf /opt/mastodon/.upgrade
 
-cd /opt/mastodon/live/ && bundle exec sidekiq -c 5 -q default -q mailers -q pull -q push &
-cd /opt/mastodon/live/ && /usr/bin/node ./streaming &
-cd /opt/mastodon/live/ && bundle exec puma -C config/puma.rb &
+cd /opt/mastodon/live/
+bundle exec sidekiq -c 25 &
+/usr/bin/node ./streaming &
+bundle exec puma -C config/puma.rb &
+wait -n

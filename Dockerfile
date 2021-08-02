@@ -37,6 +37,7 @@ ENV LOCAL_DOMAIN=example.com \
     NODE_ENV=production \
     OTP_SECRET='' \
     PATH="$PATH:/opt/mastodon/live/bin" \
+    BIND=localhost \
     DB_NAME=mastodon \
     DB_HOST=localhost \
     DB_PORT=5432 \
@@ -79,12 +80,13 @@ RUN cd /opt/mastodon && \
 
 # Cleanup
 RUN chown -R mastodon:mastodon /opt/mastodon && \
-    chmod -R 774 /opt/mastodon &&
+    chmod -R 774 /opt/mastodon
 
 COPY etc /etc
 RUN chmod +x /etc/dumb-init
 
 USER mastodon
+
 VOLUME [ "/opt/mastodon/config/", "/opt/mastodon/live/public/system/" ]
 WORKDIR /opt/mastodon
 ENTRYPOINT [ "/usr/bin/dumb-init", "--", "/etc/dumb-init" ]
