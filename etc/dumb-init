@@ -20,19 +20,19 @@ if [ -f "/opt/mastodon/config/mastodon.conf" ]; then
     # When the docker container is created an empty file is made as a check here to
     # see if the database and assets need upgrading.
     if [ -f "/opt/mastodon/.upgrade" ]; then
-        su mastodon -c "cd /opt/mastodon/live/ && SKIP_POST_DEPLOYMENT_MIGRATIONS=true bundle exec rails db:migrate"
-        su mastodon -c "cd /opt/mastodon/live/ && bin/tootctl cache clear"
-        su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails db:migrate"
-        su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails assets:precompile"
+        cd /opt/mastodon/live/ && SKIP_POST_DEPLOYMENT_MIGRATIONS=true bundle exec rails db:migrate
+        cd /opt/mastodon/live/ && bin/tootctl cache clear
+        cd /opt/mastodon/live/ && bundle exec rails db:migrate
+        cd /opt/mastodon/live/ && bundle exec rails assets:precompile
     fi
 # If there isn't then create one using the supplied environment variables
 else
     # Fill in secrets if they aren't supplied
     if [ "$OTP_SECRET" == "" ]; then
-        export OTP_SECRET=$(su mastodon -c "cd /opt/mastodon/live/ && bundle exec rake secret")
+        export OTP_SECRET=$(cd /opt/mastodon/live/ && bundle exec rake secret)
     fi
     if [ "$SECRET_KEY_BASE" == "" ]; then
-        export SECRET_KEY_BASE=$(su mastodon -c "cd /opt/mastodon/live/ && bundle exec rake secret")
+        export SECRET_KEY_BASE=$(cd /opt/mastodon/live/ && bundle exec rake secret)
     fi
 
     # Vapid keys are generated as a pair
@@ -44,7 +44,7 @@ else
         else
             # Mastodon's command outputs both as a convenience to paste into the
             # configuration file. It's not such a convenience here.
-            both=$(su mastodon -c "cd /opt/mastodon/live/ && bundle exec rake mastodon:webpush:generate_vapid_key")
+            both=$(cd /opt/mastodon/live/ && bundle exec rake mastodon:webpush:generate_vapid_key)
             export VAPID_PRIVATE_KEY=$(echo "$both" | sed -En 's/VAPID_PRIVATE_KEY=(.+)/\1/p')
             export VAPID_PUBLIC_KEY=$(echo "$both" | sed -En 's/VAPID_PUBLIC_KEY=(.+)/\1/p')
         fi
@@ -80,8 +80,8 @@ EOF
 
     # There is a chance the database might already exist, so don't want to fail
     # everything if it does.
-    su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails db:setup" || echo "Database ${DB_NAME} already exists. Won't generate a new schema." >&2
-    su mastodon -c "cd /opt/mastodon/live/ && bundle exec rails assets:precompile"
+    cd /opt/mastodon/live/ && bundle exec rails db:setup || echo "Database ${DB_NAME} already exists. Won't generate a new schema." >&2
+    cd /opt/mastodon/live/ && bundle exec rails assets:precompile
 fi
 
 while ! pg_isready -U "${DB_USER}" -d "postgres://${DB_HOST}:${DB_PORT}/${DB_NAME}" -t 1; do
@@ -94,6 +94,6 @@ done
 # simply restarted it does not trigger unnecessary database and asset upgrades.
 rm -rf /opt/mastodon/.upgrade
 
-su mastodon -c "cd /opt/mastodon/live/ && bundle exec sidekiq -c 5 -q default -q mailers -q pull -q push" &
-su mastodon -c "cd /opt/mastodon/live/ && /usr/bin/node ./streaming" &
-su mastodon -c "cd /opt/mastodon/live/ && bundle exec puma -C config/puma.rb" &
+cd /opt/mastodon/live/ && bundle exec sidekiq -c 5 -q default -q mailers -q pull -q push &
+cd /opt/mastodon/live/ && /usr/bin/node ./streaming &
+cd /opt/mastodon/live/ && bundle exec puma -C config/puma.rb &

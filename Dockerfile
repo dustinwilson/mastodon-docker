@@ -59,8 +59,8 @@ ENV LOCAL_DOMAIN=example.com \
     WEB_DOMAIN=example.com
 
 # Install dumb-init
-RUN DUMB_VERSION=1.2.5
-RUN curl -sL https://github.com/Yelp/dumb-init/releases/download/v${DUMB_VERSION}/dumb-init_${DUMB_VERSION}_amd64.deb > /tmp/dumb-init.deb && \
+RUN DUMB_VERSION="1.2.5" && \
+    curl -sL https://github.com/Yelp/dumb-init/releases/download/v${DUMB_VERSION}/dumb-init_${DUMB_VERSION}_amd64.deb > /tmp/dumb-init.deb && \
     dpkg -i /tmp/dumb-init.deb && \
     rm -rf /tmp/dumb-init.deb
 
@@ -79,11 +79,13 @@ RUN cd /opt/mastodon && \
 
 # Cleanup
 RUN chown -R mastodon:mastodon /opt/mastodon && \
-    chmod -R 774 /opt/mastodon
+    chmod -R 774 /opt/mastodon &&
 
-VOLUME [ "/opt/mastodon/config/", "/opt/mastodon/live/public/system/" ]
 COPY etc /etc
+RUN chmod +x /etc/dumb-init
+
+USER mastodon
+VOLUME [ "/opt/mastodon/config/", "/opt/mastodon/live/public/system/" ]
 WORKDIR /opt/mastodon
-ENTRYPOINT [ "/usr/bin/dumb-init", "--" ]
-CMD [ "/etc/dumb-init" ]
+ENTRYPOINT [ "/usr/bin/dumb-init", "--", "/etc/dumb-init" ]
 EXPOSE 3000 4000
