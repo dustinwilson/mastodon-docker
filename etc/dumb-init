@@ -75,10 +75,11 @@ SMTP_OPENSSL_VERIFY_MODE=${SMTP_OPENSSL_VERIFY_MODE}
 SMTP_FROM_ADDRESS=${SMTP_FROM_ADDRESS}
 EOF
 
-    if [ ! -L "/opt/mastodon/live/.env.production" ]; then
+    if [ -f "/opt/mastodon/live/.env.production" ]; then
         rm /opt/mastodon/live/.env.production
-        ln -s /opt/mastodon/config/mastodon.conf /opt/mastodon/live/.env.production
     fi
+
+    ln -s /opt/mastodon/config/mastodon.conf /opt/mastodon/live/.env.production
 
     # There is a chance the database might already exist, so don't want to fail
     # everything if it does.
